@@ -1,0 +1,43 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main
+        
+        PUBLIC  main
+        
+        ORG     0FFFEh
+        DC16    init
+        
+        RSEG    DATA16_I
+        
+//LISTA   DS      100
+LISTA   DB      3,17,5,17,14,2,20
+
+        RSEG    CSTACK
+        RSEG    CODE
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+        MOV.B   #7,R4                   ; define o tamanho da lista
+        MOV.B   #17,R5                  ; define o valor
+        CALL    #OCORRENCIA
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+OCORRENCIA
+        CLR.B   R6                      ; zera o contador
+        CLR.B   R7                      ; zera o índice
+TESTA
+        CMP.B   LISTA(R7),R5            ; compara o lista com o valor
+        JNE     SOMA
+        ADD.B   #1,R6                   ; incrementa um no contador
+SOMA
+        ADD.B   #1,R7                   ; incrementa um no índice
+        
+        CMP.B   R7,R4                   ; compara o índice com o tamanho da lista
+        JNE     TESTA
+        RET
+        
+        
+        END

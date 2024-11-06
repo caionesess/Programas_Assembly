@@ -1,0 +1,45 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main
+        
+        PUBLIC  main
+        
+        ORG     0FFFEh
+        DC16    init
+        
+        RSEG    DATA16_I
+ULTIMO  DB      0
+PENULT  DB      0
+NOVO    DB      0
+LISTA   DS      100
+
+        RSEG    CSTACK
+        RSEG    CODE
+        
+init:   MOV     #SFE(CSTACK), SP
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+        MOV     #0,R4                   ;Zera índice
+        CLR.B   PENULT                  ;Define o primeiro termo da sequência
+        MOV.B   PENULT,LISTA(R4)        ;Carrega na lista
+        MOV.B   #1,ULTIMO               ;Define o segundo termo da sequência
+        INC     R4                      ;Atualiza índice
+        MOV.B   ULTIMO,LISTA(R4)        ;Carrega na lista
+        INC     R4                      ;Atualiza índice
+VOLTA   MOV.B   PENULT,NOVO
+        ADD.B   ULTIMO,NOVO             ;Calcula novo termo
+        MOV.B   NOVO,LISTA(R4)          ;Carrega na lista
+        CMP.B   #25,NOVO
+        JHS     QUASE_FIM
+CONTINUA
+        INC     R4
+        MOV.B   ULTIMO,PENULT
+        MOV.B   NOVO,ULTIMO
+        JMP     VOLTA
+QUASE_FIM
+        JEQ     CONTINUA
+JMP $
+
+END

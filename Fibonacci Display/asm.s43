@@ -1,0 +1,135 @@
+;*******************************************************************************
+; Programa: FIBONACCI_Display
+; Descrição: Monta a sequência de Fibonacci e mostra cada valor da sequência em
+; displays de 7 segmentos.
+; John Kennedy Schettino de Souza
+; Agosto/2018
+; Desenvolvido com IAR Embedded Workbench Versão: 5.40.6
+;*******************************************************************************
+#include "msp430.h"                             ; #define controlled include file
+        NAME    main                            ; module name
+        
+        PUBLIC  main                            ; make the main label visible
+                                                ; outside this module
+                                                
+        ORG     0FFFEh
+        DC16    init                            ; set reset vector to 'init' label
+        
+        RSEG    DATA16_I
+        
+LISTA   DS      100
+
+        RSEG    CSTACK                          ; pre-declaration of segment
+        RSEG    CODE                            ; place program in 'CODE' segment
+        
+init:   MOV     #SFE(CSTACK), SP                ; set up stack
+
+main:   NOP                                     ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL          ; Stop watchdog timer
+        CALL    #CONFIG_DISPLAY
+        CLR     R5                              ; Reseta indexador da lista
+INICIO  MOV     #40,R7                          ; Limite de sequencia
+        CALL    #FIBONACCI                      ; Monta a lista com a sequência
+CONTINUA
+        MOV.B   LISTA(R5),R4                    ; Carrega o valor da sequência
+        CALL    #MOSTRA_DISPLAY                 ; Mostra valor no display
+        CALL    #TEMPO                          ; Aguarda tempo de exibição
+        CALL    #TEMPO
+        CALL    #TEMPO
+        CALL    #TEMPO
+        INC     R5                              ; Incrementa indexador da lista
+        CMP.B   R8,R5                           ; Indexador > número de elementos
+        JNE     CONTINUA                        ; Se não for mostra o próximo
+        CLR     R5                              ; Se for limpa o indexador de
+        JMP     INICIO                          ; lista e repete o processo
+/*------------------------------------------------------------------------------
+;NOME: FIBONACCI
+;DESCRICAO: Calcula a sequência de Fibonacci
+;ENTRADA: R7 - Limite para o cálculo da sequência
+;SAIDA: R8 - Numero de elementos da sequência
+LISTA - Carrega na lista a sequência
+;-----------------------------------------------------------------------------*/
+FIBONACCI
+        PUSH    R4                              ;Salva contexto
+        PUSH    R5
+        PUSH    R6
+        
+        CLR     R8                              ;Reseta número de elementos/indice
+        CLR     R4                              ;Inicializa penúltimo
+        MOV.B   R4,LISTA(R8)                    ;Salva termo na lista (memória)
+        INC     R8
+        MOV     #1,R5                           ;Inicializa último
+        MOV.B   R5,LISTA(R8)                    ;Salva termo na lista (memória)
+        INC     R8
+VOLTA   MOV     R4,R6                           ;Novo <-- Penúltimo + Último
+        ADD     R5,R6
+        CMP     R7,R6                           ;Novo > limite de encerramento?
+        JHS     QUASE_FIM                       ;Se maior ou igual fim da sub-rotina
+CONTINUAR                                        ;Senão
+        MOV.B   R6,LISTA(R8)                    ;Salva termo na lista (memória)
+        MOV     R5,R4                           ;Penúltimo <-- Último
+        MOV     R6,R5                           ;Último <-- Novo
+        INC     R8                              ;Incrementa número de elementos
+        JMP     VOLTA                           ;Retorna para calcular o novo termo
+QUASE_FIM
+        JEQ     CONTINUAR
+        
+        POP     R6                              ;Restaura contexto
+        POP     R5
+        POP     R4
+        RET
+/*------------------------------------------------------------------------------
+;NOME: CONFIG_DISPLAY
+;DESCRICAO: Configura as portas P1 e P2 do msp430 como saídas
+;ENTRADA: -
+;SAIDA: -
+;-----------------------------------------------------------------------------*/
+CONFIG_DISPLAY
+        MOV.B   #0XFF,P1DIR                     ;Configura P1 e P2 como saídas
+        MOV.B   #0XFF,P2DIR
+        BIC.B   #0XC0,P2SEL                     ;Configura os bits P2.6 e P2.7 como I/O
+        CLR.B   P1OUT                           ;Limpa as portas
+        CLR.B   P2OUT
+        RET
+/*------------------------------------------------------------------------------
+;NOME: MOSTRA_DISPLAY
+;DESCRIÇÃO: Apresenta em dois displays de 7 segmentos o valor da dezena e da
+unidade, e qualquer número de 2 dígitos decimal.
+;ENTRADA: R4 - Número em hexadecimal que será mostrado no display
+;SAIDA:
+;-----------------------------------------------------------------------------*/
+MOSTRA_DISPLAY
+        PUSH    R5                              ;Salva contexto
+        PUSH    R6
+        
+        MOV.B   R4,R5                           ;Carrega a unidade
+        CLR.B   R6                              ;Zera a dezena
+CONT    CMP.B   #10,R5                          ;Se Número > 10
+        JL      MOSTRA
+        SUB.B   #10,R5                          ;Retira uma dezena do valor
+        INC.B   R6                              ;Incrementa dezena
+        JMP     CONT
+MOSTRA  MOV.B   COD(R5),P1OUT                   ;Mostra unidade
+        MOV.B   COD(R6),P2OUT                   ;Mostra dezena
+        
+        POP     R6                              ;Restaura contexto
+        POP     R5
+        RET
+/*------------------------------------------------------------------------------
+;NOME: TEMPO
+;DESCRICAO: Faz uma contagem de 0 a 65535.
+;ENTRADA: -
+;SAIDA: -
+;-----------------------------------------------------------------------------*/
+TEMPO
+        PUSH    R4                              ;Salva contexto
+        MOV     #0xFFFF,R4
+CONTA   DEC     R4
+        JNZ     CONTA
+        POP     R4                              ;Restaura contexto
+        RET
+// Carrega o vetor que faz a conversão BCD / 7 Segmentos
+// 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9
+COD     DB      0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F
+;-----------------------------------------------------------------------------*/
+END

@@ -1,0 +1,140 @@
+#include "msp430.h"                             ; #define controlled include file
+        NAME    main                            ; module name
+        
+        PUBLIC  main                            ; make the main label visible
+                                                ; outside this module
+                                                
+        ORG     0FFFEh
+        DC16    init                            ; set reset vector to 'init' label
+        
+        RSEG    DATA16_I
+        
+//MEDIAS   DS      100
+MEDIAS  DB      2,3,4,8,0,12
+
+        RSEG    CSTACK                          ; pre-declaration of segment
+        RSEG    CODE                            ; place program in 'CODE' segment
+        
+init:   MOV     #SFE(CSTACK), SP                ; set up stack
+
+main:   NOP                                     ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL          ; Stop watchdog timer
+        CALL    #CONFIG_DISPLAY
+INICIO        
+        MOV.B   #6,R8                           ; Define o número de alunos
+        CALL    #MEDIA                          ; Chama a sub-rotina
+VOLTA        
+        MOV.B   R10,R4                          ; Move o Acima para display
+        CALL    #MOSTRA_DISPLAY                 ; Mostra valor no display
+        CALL    #TEMPO                          ; Aguarda tempo de exibição
+        CALL    #TEMPO
+        CALL    #TEMPO
+        CALL    #TEMPO
+        
+        MOV.B   R11,R4                          ; Move o Mediano para display
+        CALL    #MOSTRA_DISPLAY                 ; Mostra valor no display
+        CALL    #TEMPO                          ; Aguarda tempo de exibição
+        CALL    #TEMPO
+        CALL    #TEMPO
+        CALL    #TEMPO
+        
+        MOV.B   R12,R4                          ; Move o Abaixo para display
+        CALL    #MOSTRA_DISPLAY                 ; Mostra valor no display
+        CALL    #TEMPO                          ; Aguarda tempo de exibição
+        CALL    #TEMPO
+        CALL    #TEMPO
+        CALL    #TEMPO
+        
+        JMP     INICIO                          ; Volta para o início
+/*------------------------------------------------------------------------------
+;NOME: MEDIA
+;DESCRICAO: Chega a conclusão de quantos alunos ficaram na média, acima e abaixo
+;ENTRADA: R8 (NUM_ALUNOS)
+;SAIDA: R10 (Acima),R11 (Mediano),R12 (Abaixo)
+;-----------------------------------------------------------------------------*/
+MEDIA
+        PUSH    R5                              ; Salva contexto
+        
+        CLR.B   R5                              ; Limpa o índice
+        CLR.B   R10                             ; Limpa o Acima
+        CLR.B   R11                             ; Limpa o Mediano
+        CLR.B   R12                             ; Limpa o Abaixo
+REALIZA 
+        CMP.B   #6,MEDIAS(R5)                   ; Compara se a nota é maior ou igual a 6
+        JHS     ACIMA                           ; Se sim, incrementa o Acima
+        CMP.B   #4,MEDIAS(R5)                   ; Se não, compara se a nota é maior ou igual a 4
+        JHS     MEDIANO                         ; Se sim, incrementa o Mediano
+        
+        ADD.B   #1,R12                          ; Se não, incrementa o Abaixo
+        JMP     COMPARA
+ACIMA
+        ADD.B   #1,R10
+        JMP     COMPARA
+MEDIANO
+        ADD.B   #1,R11
+        JMP     COMPARA
+COMPARA
+        DEC     R8                              ; Decrementa o número de alunos
+        CMP.B   #0,R8                           ; Compara se já acabaram as notas
+        JEQ     FIM                             ; Se sim, encaminha para o fim
+        
+        INC     R5                              ; Se não, incrementa o índice
+        JMP     REALIZA                         ; e repete o processo
+FIM
+        POP     R5
+        RET
+/*------------------------------------------------------------------------------
+;NOME: CONFIG_DISPLAY
+;DESCRICAO: Configura as portas P1 e P2 do msp430 como saídas
+;ENTRADA: -
+;SAIDA: -
+;-----------------------------------------------------------------------------*/
+CONFIG_DISPLAY
+        MOV.B   #0XFF,P1DIR                     ;Configura P1 e P2 como saídas
+        MOV.B   #0XFF,P2DIR
+        BIC.B   #0XC0,P2SEL                     ;Configura os bits P2.6 e P2.7 como I/O
+        CLR.B   P1OUT                           ;Limpa as portas
+        CLR.B   P2OUT
+        RET
+/*------------------------------------------------------------------------------
+;NOME: MOSTRA_DISPLAY
+;DESCRIÇÃO: Apresenta em dois displays de 7 segmentos o valor da dezena e da
+unidade, e qualquer número de 2 dígitos decimal.
+;ENTRADA: R4 - Número em hexadecimal que será mostrado no display
+;SAIDA:
+;-----------------------------------------------------------------------------*/
+MOSTRA_DISPLAY
+        PUSH    R5                              ;Salva contexto
+        PUSH    R6
+        
+        MOV.B   R4,R5                           ;Carrega a unidade
+        CLR.B   R6                              ;Zera a dezena
+CONT    CMP.B   #10,R5                          ;Se Número > 10
+        JL      MOSTRA
+        SUB.B   #10,R5                          ;Retira uma dezena do valor
+        INC.B   R6                              ;Incrementa dezena
+        JMP     CONT
+MOSTRA  MOV.B   COD(R5),P1OUT                   ;Mostra unidade
+        MOV.B   COD(R6),P2OUT                   ;Mostra dezena
+        
+        POP     R6                              ;Restaura contexto
+        POP     R5
+        RET
+/*------------------------------------------------------------------------------
+;NOME: TEMPO
+;DESCRICAO: Faz uma contagem de 0 a 65535.
+;ENTRADA: -
+;SAIDA: -
+;-----------------------------------------------------------------------------*/
+TEMPO
+        PUSH    R4                              ;Salva contexto
+        MOV     #0xFFFF,R4
+CONTA   DEC     R4
+        JNZ     CONTA
+        POP     R4                              ;Restaura contexto
+        RET
+// Carrega o vetor que faz a conversão BCD / 7 Segmentos
+// 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9
+COD     DB      0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F
+;-----------------------------------------------------------------------------*/
+END

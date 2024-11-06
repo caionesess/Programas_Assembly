@@ -1,0 +1,35 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        MOV.B #2,R4 ;CARREGA 2 NO MULTIPLICADOR
+        MOV.B #127,R5 ;CARREGA 32 NO MULTIPLICANDO
+        CALL #MULTIPLICA ;CHAMA A ROTINA DE MULTIPLICAÇÃO
+        JMP $
+MULTIPLICA
+        CLR.B R6 ;ZERA PRODUTO
+        TST.B R4 ;MULTIPLICADOR É ZERO
+        JZ DEU_ZERO
+        TST.B R5 ;MULTIPLICANDO É ZERO
+        JZ DEU_ZERO
+SOMA
+        ADD.B R5,R6
+        DEC.B R4
+        JNZ SOMA
+DEU_ZERO
+        RET
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        END
